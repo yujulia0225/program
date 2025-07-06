@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <title>한글 단계별 조합 학습</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      background: #f9f9f9;
+      margin: 0; padding: 0;
+    }
+    .container {
+      max-width: 700px;
+      margin: 40px auto;
+      background: white;
+      border-radius: 15px;
+      padding: 20px;
+      box-shadow: 0 0 10px #ccc;
+    }
+    h1 {
+      margin-bottom: 25px;
+      color: #333;
+    }
+    #question {
+      font-size: 28px;
+      margin-bottom: 15px;
+      font-weight: bold;
+    }
+    .section-title {
+      font-size: 20px;
+      margin-top: 25px;
+      margin-bottom: 8px;
+      font-weight: 600;
+      color: #444;
+    }
+    .blocks {
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-bottom: 25px;
+    }
+    .block {
+      cursor: grab;
+      user-select: none;
+      border: 2px solid #009688;
+      background: #b2dfdb;
+      border-radius: 10px;
+      padding: 12px 18px;
+      font-size: 24px;
+      font-weight: bold;
+      width: 50px;
+      text-align: center;
+      box-shadow: 1px 2px 4px rgba(0,0,0,0.1);
+      transition: background 0.3s;
+      line-height: 1.2;
+    }
+    .block:active {
+      cursor: grabbing;
+      background: #00796b;
+      color: white;
+    }
+    #dropzone {
+      margin: 0 auto 20px auto;
+      width: 240px;
+      height: 80px;
+      border: 3px dashed #009688;
+      border-radius: 15px;
+      font-size: 30px;
+      color: #555;
+      background: #e0f2f1;
+      user-select: none;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    #dropzone.dragover {
+      background: #a7ffeb;
+      border-color: #00796b;
+      color: #004d40;
+    }
+    #result {
+      font-size: 28px;
+      font-weight: bold;
+      min-height: 40px;
+      margin-bottom: 20px;
+      color: #009688;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 40px;
+    }
+    button {
+      font-size: 18px;
+      padding: 10px 20px;
+      border: none;
+      border-radius: 12px;
+      background-color: #009688;
+      color: white;
+      cursor: pointer;
+      transition: background-color 0.3s;
+    }
+    button:hover {
+      background-color: #00796b;
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <h1>한글 단계별 조합 학습</h1>
+  <div id="question">문제: <span id="target"></span></div>
+
+  <div class="section-title">초성 (자음)</div>
+  <div class="blocks" id="cho-blocks"></div>
+
+  <div class="section-title">중성 (모음)</div>
+  <div class="blocks" id="jung-blocks"></div>
+
+  <div class="section-title">종성 (받침)</div>
+  <div class="blocks" id="jong-blocks"></div>
+
+  <div id="dropzone">여기로 블록을 드래그하세요</div>
+  <div id="result"></div>
+
+  <button onclick="nextQuestion()">다음 문제</button>
+</div>
+
+<script>
+  const CHO = "ㄱㄲㄴㄷㄸㄹㅁㅂㅃㅅㅆㅇㅈㅉㅊㅋㅌㅍㅎ";
+  const JUNG = "ㅏㅐㅑㅒㅓㅔㅕㅖㅗㅘㅙㅚㅛㅜㅝㅞㅟㅠㅡㅢㅣ";
+  const JONG = ["", "ㄱ","ㄲ","ㄱㅅ","ㄴ","ㄴㅈ","ㄴㅎ","ㄷ","ㄹ","ㄹㄱ","ㄹㅁ",
+    "ㄹㅂ","ㄹㅅ","ㄹㅌ","ㄹㅍ","ㄹㅎ","ㅁ","ㅂ","ㅂㅅ","ㅅ","ㅆ","ㅇ",
+    "ㅈ","ㅊ","ㅋ","ㅌ","ㅍ","ㅎ"];
+
+  const WORDS = [
+    "학교", "사과", "우산", "의자", "물고기", "자동차", "바나나", "고양이", "사랑", "친구"
+  ];
+
+  let stage = 1;
+  let correctCount = 0;
+  let collected = [];
+  let target = '';
+
+  const dropzone = document.getElementById('dropzone');
+  const result = document.getElementById('result');
+  const targetSpan = document.getElementById('target');
+  const choContainer = document.getElementById('cho-blocks');
+  const jungContainer = document.getElementById('jung-blocks');
+  const jongContainer = document.getElementById('jong-blocks');
+
+  function combineJamos(cho, jung, jong = '') {
+    const choIndex = CHO.indexOf(cho);
+    const jungIndex = JUNG.indexOf(jung);
+    const jongIndex = JONG.indexOf(jong);
+    if (choIndex < 0 || jungIndex < 0 || jongIndex < 0) return '';
+    const code = 0xAC00 + (choIndex * 21 * 28) + (jungIndex * 28) + jongIndex;
+    return String.fromCharCode(code);
+  }
+
+  function renderBlocks() {
+    choContainer.innerHTML = '';
+    jungContainer.innerHTML = '';
+    jongContainer.innerHTML = '';
+
+    [...CHO].forEach(c => createBlock(c, choContainer));
+    [...JUNG].forEach(c => createBlock(c, jungContainer));
+    JONG.forEach(c => { if (c !== '') createBlock(c, jongContainer); });
+  }
+
+  function createBlock(char, container) {
+    const div = document.createElement('div');
+    div.className = 'block';
+    div.textContent = char;
+    div.setAttribute('draggable', true);
+    div.setAttribute('data-char', char);
+    div.addEventListener('dragstart', e => {
+      e.dataTransfer.setData('text/plain', char);
+    });
+    container.appendChild(div);
+  }
+
+  function getRequiredBlockCount(word) {
+    let count = 0;
+    for (let ch of word) {
+      const code = ch.charCodeAt(0) - 0xAC00;
+      const jongIndex = code % 28;
+      count += jongIndex === 0 ? 2 : 3;
+    }
+    return count;
+  }
+
+  function nextQuestion() {
+    collected = [];
+    dropzone.textContent = '여기로 블록을 드래그하세요';
+    result.textContent = '';
+
+    if (stage === 1 && correctCount >= 5) {
+      stage = 2;
+      alert('받침 있는 음절 단계로 넘어갑니다!');
+      correctCount = 0;
+    } else if (stage === 2 && correctCount >= 10) {
+      stage = 3;
+      alert('단어 단계로 넘어갑니다!');
+      correctCount = 0;
+    }
+
+    if (stage === 1) {
+      const cho = getRandomElement([...CHO]);
+      const jung = getRandomElement([...JUNG]);
+      target = combineJamos(cho, jung, '');
+    } else if (stage === 2) {
+      const cho = getRandomElement([...CHO]);
+      const jung = getRandomElement([...JUNG]);
+      const jong = getRandomElement(JONG.filter(c => c !== ''));
+      target = combineJamos(cho, jung, jong);
+    } else {
+      target = getRandomElement(WORDS);
+    }
+
+    targetSpan.textContent = target;
+    speak('문제: ' + target);
+  }
+
+  function getRandomElement(arr) {
+    return arr[Math.floor(Math.random() * arr.length)];
+  }
+
+  dropzone.addEventListener('dragover', e => {
+    e.preventDefault();
+    dropzone.classList.add('dragover');
+  });
+
+  dropzone.addEventListener('dragleave', () => {
+    dropzone.classList.remove('dragover');
+  });
+
+  dropzone.addEventListener('drop', e => {
+    e.preventDefault();
+    dropzone.classList.remove('dragover');
+    const char = e.dataTransfer.getData('text/plain');
+    collected.push(char);
+    dropzone.textContent = collected.join(' + ');
+
+    if (stage === 1 && collected.length === 2) {
+      const combined = combineJamos(collected[0], collected[1], '');
+      checkAnswer(combined);
+    } else if (stage === 2 && collected.length === 3) {
+      const combined = combineJamos(collected[0], collected[1], collected[2]);
+      checkAnswer(combined);
+    } else if (stage === 3) {
+      const required = getRequiredBlockCount(target);
+      if (collected.length > required) {
+        showWrong();
+        return;
+      }
+
+      if (collected.length === required) {
+        let word = '';
+        let valid = true;
+        let i = 0;
+
+        for (let ch of target) {
+          const code = ch.charCodeAt(0) - 0xAC00;
+          const jongIndex = code % 28;
+          const cho = collected[i++];
+          const jung = collected[i++];
+          let jong = '';
+          if (jongIndex !== 0) {
+            jong = collected[i++];
+          }
+
+          const syllable = combineJamos(cho, jung, jong);
+          if (!syllable) {
+            valid = false;
+            break;
+          }
+          word += syllable;
+        }
+
+        if (valid) {
+          checkAnswer(word);
+        } else {
+          showWrong();
+        }
+      }
+    }
+  });
+
+  function checkAnswer(answer) {
+    if (answer === target) {
+      correctCount++;
+      result.style.color = 'green';
+      result.textContent = '잘했어요!';
+      speak(answer);
+      collected = [];
+      dropzone.textContent = '여기로 블록을 드래그하세요';
+      setTimeout(() => {
+        result.textContent = '';
+        nextQuestion();
+      }, 1500);
+    } else {
+      showWrong();
+    }
+  }
+
+  function showWrong() {
+    result.style.color = 'red';
+    result.textContent = '다시 생각해볼까?';
+    speak('다시 생각해볼까?');
+    collected = [];
+    dropzone.textContent = '여기로 블록을 드래그하세요';
+  }
+
+  function speak(text) {
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+      const utter = new SpeechSynthesisUtterance(text);
+      utter.lang = 'ko-KR';
+      window.speechSynthesis.speak(utter);
+    }
+  }
+
+  renderBlocks();
+  nextQuestion();
+</script>
+
+</body>
+</html>
